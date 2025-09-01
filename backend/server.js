@@ -5,7 +5,7 @@ const cors = require("cors");
 const fs = require("fs");
 
 const app = express();
-app.use(cors({ origin: "*" })); // allow frontend on Netlify
+app.use(cors({ origin: "*" })); // allow frontend (e.g., Netlify)
 app.use(express.json());
 
 // ===== 1. Ensure uploads folder exists =====
@@ -27,26 +27,31 @@ const frontendDir = path.join(__dirname, "../frontend");
 app.use(express.static(frontendDir));
 
 // ===== 5. Root route =====
-app.get("/", (req, res) => res.sendFile(path.join(frontendDir, "index.html")));
+app.get("/", (req, res) => {
+  res.sendFile(path.join(frontendDir, "index.html"));
+});
 
 // ===== 6. Upload endpoint =====
 app.post("/upload", upload.single("pdf"), (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-  res.json({ url: `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}` });
+
+  const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+  res.json({ url: fileUrl });
 });
 
 // ===== 7. List PDFs =====
 app.get("/files", (req, res) => {
   fs.readdir(uploadDir, (err, files) => {
     if (err) return res.status(500).json({ error: "Cannot read uploads" });
-    const pdfs = files.filter(f => f.endsWith(".pdf")).map(f => `/uploads/${f}`);
+
+    const pdfs = files
+      .filter(f => f.toLowerCase().endsWith(".pdf"))
+      .map(f => `/uploads/${f}`);
+
     res.json(pdfs);
   });
 });
-const cors = require("cors");
-app.use(cors());
 
 // ===== 8. Start server =====
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
-
