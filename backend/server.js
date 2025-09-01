@@ -43,7 +43,10 @@ app.get("/files", (req, res) => {
     res.json(pdfs);
   });
 });
+const cors = require("cors");
+app.use(cors());
 
 // ===== 8. Start server =====
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
+
