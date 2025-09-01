@@ -3,77 +3,79 @@
 <head>
   <meta charset="UTF-8">
   <title>Flipbook Viewer</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/stpageflip@2.0.7/dist/page-flip.browser.min.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/stpageflip@2.0.7/dist/page-flip.browser.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/page-flip/dist/css/page-flip.css">
   <style>
-    body { display: flex; flex-direction: column; align-items: center; padding: 20px; }
-    #flipbook { width: 600px; height: 800px; margin-top: 20px; }
-    ul { list-style: none; display: flex; gap: 10px; flex-wrap: wrap; padding: 0; }
-    li { margin: 5px 0; }
-    a { text-decoration: none; color: blue; padding: 5px 10px; border: 1px solid #ccc; border-radius: 5px; }
-    a:hover { background-color: #f0f0f0; }
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: #f0f0f0;
+    }
+    #flipbook {
+      width: 90%;
+      height: 90vh;
+    }
   </style>
 </head>
 <body>
-  <h1>Flipbook Viewer</h1>
-  <ul id="pdf-list"></ul>
   <div id="flipbook"></div>
 
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
+
   <script>
-    const flipbookContainer = document.getElementById("flipbook");
-    const pdfListContainer = document.getElementById("pdf-list");
-    let pageFlip;
+    async function loadFlipbook(pdfUrl) {
+      const container = document.getElementById("flipbook");
+      const pageFlip = new St.PageFlip(container, {
+        width: 600,
+        height: 800,
+        size: "stretch",
+        minWidth: 315,
+        maxWidth: 1000,
+        minHeight: 420,
+        maxHeight: 1350,
+        drawShadow: true,
+        flippingTime: 700,
+        usePortrait: true,
+        startPage: 0,
+        autoSize: true,
+        showCover: true,
+        mobileScrollSupport: true
+      });
 
-    async function loadPDFList() {
-      try {
-        const res = await fetch("/files");
-        const pdfs = await res.json();
-        if (pdfs.length === 0) {
-          pdfListContainer.innerHTML = "<li>No PDFs uploaded yet.</li>";
-          return;
-        }
+      // Load PDF
+      const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
 
-        pdfListContainer.innerHTML = "";
-        pdfs.forEach(url => {
-          const li = document.createElement("li");
-          const a = document.createElement("a");
-          a.textContent = url.split("/").pop();
-          a.onclick = () => loadPDF(url);
-          li.appendChild(a);
-          pdfListContainer.appendChild(li);
-        });
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 2 });
 
-        loadPDF(pdfs[0]); // auto-load first PDF
-      } catch (err) {
-        console.error("Failed to load PDF list:", err);
-        pdfListContainer.innerHTML = "<li>Error loading PDFs.</li>";
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({ canvasContext: context, viewport: viewport }).promise;
+
+        pageFlip.loadFromImages([canvas.toDataURL()]);
       }
     }
 
-    async function loadPDF(url) {
-      flipbookContainer.innerHTML = "";
-      try {
-        const pdf = await pdfjsLib.getDocument(url).promise;
-        pageFlip = new St.PageFlip(flipbookContainer, { width: 600, height: 800, size: "stretch", drawShadow: true, showCover: true });
+    // Read ?file= query parameter
+    const params = new URLSearchParams(window.location.search);
+    const fileUrl = params.get("file");
 
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const viewport = page.getViewport({ scale: 1.5 });
-          const canvas = document.createElement("canvas");
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
-
-          pageFlip.loadFromHTML([{ type: "image", src: canvas.toDataURL(), width: 600, height: 800 }]);
-        }
-      } catch (err) {
-        console.error("Failed to load PDF:", err);
-        flipbookContainer.innerHTML = "<p>Error loading PDF.</p>";
-      }
+    if (fileUrl) {
+      loadFlipbook(fileUrl).catch(err => {
+        console.error("Error loading PDF:", err);
+        alert("Error loading PDF file.");
+      });
+    } else {
+      alert("No PDF file provided in URL.");
     }
-
-    loadPDFList();
   </script>
 </body>
 </html>
