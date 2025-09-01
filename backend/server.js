@@ -39,7 +39,20 @@ app.post("/upload", upload.single("pdf"), (req, res) => {
     url: `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`
   });
 });
+const fs = require("fs");
+
+// List all uploaded PDFs
+app.get("/files", (req, res) => {
+  fs.readdir(uploadDir, (err, files) => {
+    if (err) return res.status(500).json({ error: "Cannot read uploads" });
+    const pdfs = files
+      .filter(f => f.endsWith(".pdf"))
+      .map(f => `/uploads/${f}`);
+    res.json(pdfs);
+  });
+});
 
 // Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
+
