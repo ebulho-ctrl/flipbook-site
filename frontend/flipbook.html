@@ -14,39 +14,69 @@
 <body>
   <div id="flipbook"></div>
 
-  <script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const pdfUrl = urlParams.get("file");
-    const flipbook = document.getElementById("flipbook");
+ <script>
+const flipbook = document.getElementById("flipbook");
+let pageFlip;
 
-    const pageFlip = new St.PageFlip(flipbook, {
-      width: 600,
-      height: 800,
-      size: "stretch",
-      drawShadow: true,
-      showCover: true
-    });
+// Fetch uploaded PDFs
+async function fetchPDFs() {
+  const res = await fetch("/files");
+  const pdfs = await res.json();
 
-    async function loadPDF(url) {
-      const pdf = await pdfjsLib.getDocument(url).promise;
+  // If no PDFs, show message
+  if (!pdfs.length) {
+    flipbook.innerHTML = "<p>No PDFs uploaded yet.</p>";
+    return;
+  }
 
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 1.5 });
-        const canvas = document.createElement("canvas");
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
+  // Create a list of links
+  const list = document.createElement("ul");
+  pdfs.forEach(url => {
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.href = "#";
+    a.textContent = url.split("/").pop();
+    a.onclick = () => loadPDF(url);
+    li.appendChild(a);
+    list.appendChild(li);
+  });
 
-        const ctx = canvas.getContext("2d");
-        await page.render({ canvasContext: ctx, viewport }).promise;
+  flipbook.innerHTML = "";
+  flipbook.appendChild(list);
+}
 
-        pageFlip.loadFromHTML([
-          { type: "image", src: canvas.toDataURL(), width: 600, height: 800 }
-        ]);
-      }
-    }
+// Load a PDF into the flipbook
+async function loadPDF(url) {
+  const pdf = await pdfjsLib.getDocument(url).promise;
+  flipbook.innerHTML = ""; // clear previous content
 
-    loadPDF(pdfUrl);
-  </script>
+  pageFlip = new St.PageFlip(flipbook, {
+    width: 600,
+    height: 800,
+    size: "stretch",
+    drawShadow: true,
+    showCover: true
+  });
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 1.5 });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+
+    const ctx = canvas.getContext("2d");
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    pageFlip.loadFromHTML([
+      { type: "image", src: canvas.toDataURL(), width: 600, height: 800 }
+    ]);
+  }
+}
+
+// Initialize
+fetchPDFs();
+</script>
 </body>
 </html>
+
