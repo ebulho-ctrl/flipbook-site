@@ -39,7 +39,6 @@ app.post("/upload", upload.single("pdf"), (req, res) => {
     url: `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`
   });
 });
-const fs = require("fs");
 
 // List all uploaded PDFs
 app.get("/files", (req, res) => {
@@ -55,4 +54,3 @@ app.get("/files", (req, res) => {
 // Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
-
