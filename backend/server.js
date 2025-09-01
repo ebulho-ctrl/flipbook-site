@@ -5,19 +5,14 @@ const cors = require("cors");
 const fs = require("fs");
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: "*" })); // allow frontend on Netlify
 app.use(express.json());
 
 // ===== 1. Ensure uploads folder exists =====
 const uploadDir = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-  console.log("Uploads folder created at:", uploadDir);
-} else {
-  console.log("Uploads folder already exists at:", uploadDir);
-}
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-// ===== 2. Multer setup for PDF uploads =====
+// ===== 2. Multer setup =====
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
   filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
@@ -32,25 +27,19 @@ const frontendDir = path.join(__dirname, "../frontend");
 app.use(express.static(frontendDir));
 
 // ===== 5. Root route =====
-app.get("/", (req, res) => {
-  res.sendFile(path.join(frontendDir, "index.html"));
-});
+app.get("/", (req, res) => res.sendFile(path.join(frontendDir, "index.html")));
 
 // ===== 6. Upload endpoint =====
 app.post("/upload", upload.single("pdf"), (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-  res.json({
-    url: `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`
-  });
+  res.json({ url: `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}` });
 });
 
-// ===== 7. List all uploaded PDFs =====
+// ===== 7. List PDFs =====
 app.get("/files", (req, res) => {
   fs.readdir(uploadDir, (err, files) => {
     if (err) return res.status(500).json({ error: "Cannot read uploads" });
-    const pdfs = files
-      .filter(f => f.endsWith(".pdf"))
-      .map(f => `/uploads/${f}`);
+    const pdfs = files.filter(f => f.endsWith(".pdf")).map(f => `/uploads/${f}`);
     res.json(pdfs);
   });
 });
