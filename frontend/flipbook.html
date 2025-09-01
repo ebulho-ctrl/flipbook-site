@@ -7,11 +7,39 @@
   <script src="https://cdn.jsdelivr.net/npm/stpageflip@2.0.7/dist/page-flip.browser.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/stpageflip@2.0.7/dist/page-flip.browser.min.css">
   <style>
-    body { display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
-    #flipbook { width: 600px; height: 800px; margin-top: 20px; }
-    ul { list-style: none; padding: 0; }
-    li { margin: 5px 0; }
-    a { text-decoration: none; color: blue; cursor: pointer; }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      padding: 20px;
+    }
+    #flipbook {
+      width: 600px;
+      height: 800px;
+      margin-top: 20px;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    li {
+      margin: 5px 0;
+    }
+    a {
+      text-decoration: none;
+      color: blue;
+      cursor: pointer;
+      padding: 5px 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    a:hover {
+      background-color: #f0f0f0;
+    }
   </style>
 </head>
 <body>
@@ -24,58 +52,71 @@
     const pdfListContainer = document.getElementById("pdf-list");
     let pageFlip;
 
-    // Load all uploaded PDFs
+    // Load list of uploaded PDFs
     async function loadPDFList() {
-      const res = await fetch("/files");
-      const pdfs = await res.json();
+      try {
+        const res = await fetch("/files");
+        const pdfs = await res.json();
 
-      if (pdfs.length === 0) {
-        pdfListContainer.innerHTML = "<li>No PDFs uploaded yet.</li>";
-        return;
+        if (pdfs.length === 0) {
+          pdfListContainer.innerHTML = "<li>No PDFs uploaded yet.</li>";
+          return;
+        }
+
+        // Create links for each PDF
+        pdfListContainer.innerHTML = "";
+        pdfs.forEach(url => {
+          const li = document.createElement("li");
+          const a = document.createElement("a");
+          a.textContent = url.split("/").pop();
+          a.onclick = () => loadPDF(url);
+          li.appendChild(a);
+          pdfListContainer.appendChild(li);
+        });
+
+        // Automatically load the first PDF
+        loadPDF(pdfs[0]);
+      } catch (err) {
+        console.error("Failed to load PDF list:", err);
+        pdfListContainer.innerHTML = "<li>Error loading PDFs.</li>";
       }
-
-      pdfListContainer.innerHTML = "";
-      pdfs.forEach(url => {
-        const li = document.createElement("li");
-        const a = document.createElement("a");
-        a.textContent = url.split("/").pop();
-        a.onclick = () => loadPDF(url);
-        li.appendChild(a);
-        pdfListContainer.appendChild(li);
-      });
-
-      // Automatically load the first PDF
-      loadPDF(pdfs[0]);
     }
 
+    // Load a PDF into the flipbook
     async function loadPDF(url) {
       flipbookContainer.innerHTML = ""; // clear previous flipbook
+      try {
+        const pdf = await pdfjsLib.getDocument(url).promise;
 
-      const pdf = await pdfjsLib.getDocument(url).promise;
-      pageFlip = new St.PageFlip(flipbookContainer, {
-        width: 600,
-        height: 800,
-        size: "stretch",
-        drawShadow: true,
-        showCover: true
-      });
+        pageFlip = new St.PageFlip(flipbookContainer, {
+          width: 600,
+          height: 800,
+          size: "stretch",
+          drawShadow: true,
+          showCover: true
+        });
 
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 1.5 });
-        const canvas = document.createElement("canvas");
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale: 1.5 });
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
 
-        const ctx = canvas.getContext("2d");
-        await page.render({ canvasContext: ctx, viewport }).promise;
+          const ctx = canvas.getContext("2d");
+          await page.render({ canvasContext: ctx, viewport }).promise;
 
-        pageFlip.loadFromHTML([
-          { type: "image", src: canvas.toDataURL(), width: 600, height: 800 }
-        ]);
+          pageFlip.loadFromHTML([
+            { type: "image", src: canvas.toDataURL(), width: 600, height: 800 }
+          ]);
+        }
+      } catch (err) {
+        console.error("Failed to load PDF:", err);
+        flipbookContainer.innerHTML = "<p>Error loading PDF.</p>";
       }
     }
 
+    // Initialize
     loadPDFList();
   </script>
 </body>
