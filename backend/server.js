@@ -6,33 +6,37 @@ const fs = require("fs");
 
 const app = express();
 app.use(cors());
+app.use(express.json());
 
-// Ensure uploads folder exists
+// ===== 1. Ensure uploads folder exists =====
 const uploadDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log("Uploads folder created at:", uploadDir);
+} else {
+  console.log("Uploads folder already exists at:", uploadDir);
 }
 
-// Multer storage setup
+// ===== 2. Multer setup for PDF uploads =====
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
   filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
 });
 const upload = multer({ storage });
 
-// Serve uploaded files
+// ===== 3. Serve uploaded PDFs =====
 app.use("/uploads", express.static(uploadDir));
 
-// Serve frontend files
+// ===== 4. Serve frontend files =====
 const frontendDir = path.join(__dirname, "../frontend");
 app.use(express.static(frontendDir));
 
-// Root route
+// ===== 5. Root route =====
 app.get("/", (req, res) => {
   res.sendFile(path.join(frontendDir, "index.html"));
 });
 
-// Upload endpoint
+// ===== 6. Upload endpoint =====
 app.post("/upload", upload.single("pdf"), (req, res) => {
   if (!req.file) return res.status(400).json({ error: "No file uploaded" });
   res.json({
@@ -40,7 +44,7 @@ app.post("/upload", upload.single("pdf"), (req, res) => {
   });
 });
 
-// List all uploaded PDFs
+// ===== 7. List all uploaded PDFs =====
 app.get("/files", (req, res) => {
   fs.readdir(uploadDir, (err, files) => {
     if (err) return res.status(500).json({ error: "Cannot read uploads" });
@@ -51,6 +55,6 @@ app.get("/files", (req, res) => {
   });
 });
 
-// Start server
+// ===== 8. Start server =====
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
